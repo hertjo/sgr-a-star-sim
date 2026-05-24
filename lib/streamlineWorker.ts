@@ -30,9 +30,14 @@ self.onmessage = (e: MessageEvent<Request>) => {
         maxRadius: 56,
       });
       if (line.length < 2) continue;
+      // Streamlines only render on the left half of the plot (the
+      // Radiation Power / |B| panels) - the right (Density) panel in
+      // the reference video has no field-line overlay. Drop any
+      // segment that touches x >= 0.
       for (let i = 0; i < line.length - 1; i++) {
         const [x1, y1] = line[i];
         const [x2, y2] = line[i + 1];
+        if (x1 >= 0 || x2 >= 0) continue;
         positions.push(x1, y1, 0.05, x2, y2, 0.05);
       }
     }
