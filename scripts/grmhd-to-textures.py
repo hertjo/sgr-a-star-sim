@@ -84,17 +84,20 @@ def build_yoon_atlas(yoon_dir: Path, out_dir: Path) -> dict:
     # mathematical y axis (positive up). Flip vertically.
     cropped = cropped[:, ::-1, :]
 
-    # Log-normalize per frame (synchrotron has high dynamic range).
-    # Add small floor so log doesn't blow up on zeros.
-    floor = max(1e-10, float(np.percentile(cropped[cropped > 0], 1)))
-    log_inu = np.log10(np.maximum(cropped, floor) / floor)
+    # Sqrt-clip normalization. Log10 compresses brightness ratios so
+    # aggressively that the actual ~50% frame-to-frame totFnu variation
+    # gets squashed to <5% of the display range, making the playback look
+    # static. Sqrt is a much gentler compression — a 2x brighter frame
+    # looks ~40% brighter on screen, preserving the visible MAD pulsation.
+    # We still clip the top 0.5% so the brightest hot-spot doesn't dictate
+    # the whole range.
+    cropped = np.maximum(cropped, 0.0)
+    sqrt_inu = np.sqrt(cropped)
 
-    # Use a *global* normalization so brightness changes between frames are
-    # preserved (the reference video does this too).
-    vmin = float(np.percentile(log_inu, 1))
-    vmax = float(np.percentile(log_inu, 99.5))
-    norm = np.clip((log_inu - vmin) / max(1e-9, vmax - vmin), 0.0, 1.0)
-    print(f"  log10 range used for normalization: [{vmin:.2f}, {vmax:.2f}]")
+    vmin = float(np.percentile(sqrt_inu, 2))
+    vmax = float(np.percentile(sqrt_inu, 99.5))
+    norm = np.clip((sqrt_inu - vmin) / max(1e-9, vmax - vmin), 0.0, 1.0)
+    print(f"  sqrt(Inu) range used for normalization: [{vmin:.2e}, {vmax:.2e}]")
 
     # Resample each frame to TILE_W x TILE_H.
     frames_u8 = np.empty((n_frames, TILE_H, TILE_W), dtype=np.uint8)
@@ -126,8 +129,8 @@ def build_yoon_atlas(yoon_dir: Path, out_dir: Path) -> dict:
         "rows": rows,
         "plot_domain": {"xmin": PLOT_XMIN, "xmax": PLOT_XMAX, "ymin": PLOT_YMIN, "ymax": PLOT_YMAX},
         "t_sim": [float(x) for x in t.tolist()],
-        "log10_min": vmin,
-        "log10_max": vmax,
+        "sqrt_min": vmin,
+        "sqrt_max": vmax,
     }
 
 

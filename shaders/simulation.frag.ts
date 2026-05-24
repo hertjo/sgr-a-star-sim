@@ -122,11 +122,12 @@ void main() {
     float rhoN;
     if (uUseData > 0.5) {
       rhoN = sampleRadAtlas(p);
-      // Push dim/outer regions hard toward off-white background so the
-      // density panel reads as "smooth plasma blob on white" like the
-      // reference, with the filaments only barely showing in the bright
-      // disk core.
-      rhoN = pow(rhoN, 3.0);
+      // Push dim/outer regions toward off-white background so the density
+      // panel reads as "smooth plasma blob on white" like the reference.
+      // Gamma 1.7 is tuned for the sqrt-normalized atlas — older code used
+      // 3.0 which was correct for log-normalized values and washed out
+      // here.
+      rhoN = pow(rhoN, 1.7);
     } else {
       float rho = density(p, uTime);
       rhoN = pow(clamp(rho * 1.4, 0.0, 1.0), 0.7);
