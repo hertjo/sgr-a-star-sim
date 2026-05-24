@@ -67,34 +67,35 @@ float density(vec2 p, float t) {
 
   // Latitude factor: 1 at equator (small |y|/r), -> 0 at poles.
   float sinth = abs(p.x) / rs;       // = sin(angle-from-y-axis)
-  float costh = abs(p.y) / rs;       // = cos(angle-from-y-axis)
-  float diskShape = pow(sinth, 3.0); // strong concentration near equator
+  float diskShape = pow(sinth, 2.0); // soft concentration near equator
 
-  // Radial profile: high near BH, falling off outward.
-  float radial = 1.4 / pow(max(r, 1.0), 0.85);
+  // Smooth gaussian plasma core — gives the right panel a continuous
+  // filled blob rather than wispy lines.
+  float core = exp(-pow((r - 4.0) / 11.0, 2.0)) * 1.4;
 
-  float base = diskShape * radial;
+  // Broad outflow lobe biased to the +x side (matches the source video).
+  float outflow = exp(-pow((p.x - 12.0) / 18.0, 2.0))
+                * exp(-pow(p.y / 22.0, 2.0))
+                * 0.9;
 
-  // Outflow / wind asymmetry on +x side (matches the source video's bias).
-  float wind = 0.55
-             * exp(-pow((p.x - 14.0) / 14.0, 2.0))
-             * exp(-pow(p.y / 16.0, 2.0));
+  float base = (core + outflow) * (0.4 + 0.6 * diskShape);
 
-  // Turbulent advection.
+  // Gentle turbulent modulation — tight amplitude so the blob stays
+  // smooth, not stippled. Low-frequency only.
   vec2 warp = vec2(
-    fbm(p * 0.10 + vec2(t * 0.05, 0.0)),
-    fbm(p * 0.10 + vec2(11.0, -t * 0.05))
-  ) * 3.5;
-  float turb = 0.65 + 0.85 * (warpedFbm(p * 0.20 + warp, t) + 0.5);
+    fbm(p * 0.06 + vec2(t * 0.04, 0.0)),
+    fbm(p * 0.06 + vec2(11.0, -t * 0.04))
+  ) * 2.5;
+  float turb = 0.88 + 0.18 * warpedFbm(p * 0.10 + warp, t);
 
   // Funnel evacuation along the y-axis (jet cone).
   float funnel = exp(-pow(p.x / 2.5, 2.0)) * smoothstep(2.0, 8.0, abs(p.y));
   float funnelEvac = 1.0 - 0.85 * funnel;
 
-  float rho = (base + wind) * turb * funnelEvac;
+  float rho = base * turb * funnelEvac;
 
   // Far-field falloff.
-  rho *= exp(-r / 90.0);
+  rho *= exp(-r / 70.0);
 
   return max(rho, 0.0);
 }
