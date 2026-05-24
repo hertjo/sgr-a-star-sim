@@ -71,11 +71,12 @@ void main() {
   vec2 p = vPos;
   float r = length(p);
 
-  // ---------------- Black hole shadow ----------------
-  if (r < R_HORIZON) {
-    gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
-    return;
-  }
+  // No hard-coded BH shadow disk — Yoon's BHOSS ray-trace already bakes
+  // the correct GR-lensed photon-sphere shadow into the Inu atlas (and
+  // its apparent radius is ~5 r_g, larger than R_HORIZON=2 due to light
+  // bending). Forcing a black disk at r < 2 painted a visible dark
+  // circle on top of the real, larger shadow. In procedural mode the
+  // density/B/rad fields already evaluate to ~0 inside r < R_HORIZON.
 
   vec3 col;
 
