@@ -39,3 +39,16 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# AI agent / assistant config and helper files — not part of the shipped
+# project, just instructions for whichever coding agent edits the repo.
+CLAUDE.md
+AGENTS.md
+.cursorrules
+.aider*
+.continue/
+.windsurfrules
+
+# Local dev / debug scratch files
+_screenshot.mjs
+_*.tmp.*

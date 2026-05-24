@@ -9,6 +9,7 @@
 
 public/grmhd/*.png        filter=lfs diff=lfs merge=lfs -text
 public/grmhd/*.webp       filter=lfs diff=lfs merge=lfs -text
-public/grmhd/*.gif        filter=lfs diff=lfs merge=lfs -text
 public/grmhd/*.bin        filter=lfs diff=lfs merge=lfs -text
 public/grmhd/*.zip        filter=lfs diff=lfs merge=lfs -text
+# *.gif intentionally NOT LFS — README markdown can't render LFS pointer
+# files inline. GIFs under a few MB are fine in regular git storage.
