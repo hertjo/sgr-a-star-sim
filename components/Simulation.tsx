@@ -16,11 +16,8 @@ import LoadingOverlay from "@/components/hud/LoadingOverlay";
 import ModeToggle from "@/components/hud/ModeToggle";
 import SeparatorHandles from "@/components/hud/SeparatorHandles";
 
-// Wall-clock loop length. The Yoon dataset's 101 frames span 5000 r_g/c of
-// simulation time (~28 hours of real Sgr A* accretion). At 180s playback
-// each frame is shown for ~1.8s, slow enough that the linear interp
-// between adjacent frames reads as a steady evolution rather than a
-// pulsation between two states.
+// Wall-clock loop length. The data atlas covers ~5000 r_g/c of simulation
+// time (~28h of real Sgr A* accretion), played back as a 3-minute loop.
 const DURATION = 180;
 const DATA_DURATION = 180;
 const DISPLAY_UPDATE_MS = 250;
@@ -36,9 +33,9 @@ export default function Simulation() {
   const [ready, setReady] = useState(false);
   const [useData, setUseData] = useState(true);
 
-  // Separator positions live in refs so dragging mutates them every
-  // mousemove without re-rendering the React tree. A `_renderTick` state
-  // is bumped only to drive the visible handle position via re-render.
+  // Refs (not state) so that dragging the separators every mousemove
+  // doesn't reconcile the React tree. A forced tick re-renders just
+  // the visible handle positions; the shader reads the refs each frame.
   const xSplitRef = useRef(0);
   const ySplitRef = useRef(0);
   const [, forceTick] = useState(0);
@@ -80,9 +77,6 @@ export default function Simulation() {
     ({ x, y }: { x?: number; y?: number }) => {
       if (x !== undefined) xSplitRef.current = x;
       if (y !== undefined) ySplitRef.current = y;
-      // Bump a counter to repaint the React-rendered drag handles. The
-      // shader uniforms are read from refs each frame, so they update
-      // without needing this.
       forceTick((c) => c + 1);
     },
     [],
@@ -93,8 +87,7 @@ export default function Simulation() {
     forceTick((c) => c + 1);
   }, []);
 
-  // Test hook used by scripts/capture-gif.mjs to animate the separators
-  // during the demo recording. Inert in normal use.
+  // Test hook for the demo recording script. No effect in normal use.
   useEffect(() => {
     if (typeof window === "undefined") return;
     const w = window as unknown as {

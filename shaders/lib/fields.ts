@@ -73,7 +73,7 @@ float density(vec2 p, float t) {
   // filled blob rather than wispy lines.
   float core = exp(-pow((r - 4.0) / 11.0, 2.0)) * 1.4;
 
-  // Broad outflow lobe biased to the +x side (matches the source video).
+  // Broad outflow lobe biased to the +x side.
   float outflow = exp(-pow((p.x - 12.0) / 18.0, 2.0))
                 * exp(-pow(p.y / 22.0, 2.0))
                 * 0.9;

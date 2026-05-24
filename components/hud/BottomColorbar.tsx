@@ -1,5 +1,5 @@
-// Intentionally empty — the source video draws |B| in the bottom-left
-// quadrant of the plot itself instead of as a separate bottom bar.
+// Reserved for a future bottom-axis colorbar; currently rendered as part
+// of the plot itself.
 export default function BottomColorbar() {
   return null;
 }

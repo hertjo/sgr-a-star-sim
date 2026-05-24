@@ -15,14 +15,14 @@ const FRAGMENT_HEADER = `
 precision highp float;
 varying vec2 vPos;
 uniform float uTime;
-uniform float uUseData;       // 0 = procedural, 1 = real GRMHD textures
+uniform float uUseData;
 uniform sampler2D uRadAtlas;
 uniform float uAtlasFrames;
 uniform float uAtlasCols;
 uniform float uAtlasRows;
-uniform float uDataDuration;  // seconds the atlas should loop over
-uniform float uXSplit;        // plot-space x of the vertical separator
-uniform float uYSplit;        // plot-space y of the horizontal separator
+uniform float uDataDuration;
+uniform float uXSplit;
+uniform float uYSplit;
 `;
 
 const FRAGMENT_SHADER = [
@@ -70,7 +70,6 @@ export default function SimulationPlane({
     atlas.needsUpdate = true;
   }, [atlas]);
 
-  // The manifest is small JSON; fetched once on mount.
   const manifestRef = useRef<Manifest | null>(null);
   useEffect(() => {
     fetch("/grmhd/manifest.json")
@@ -99,7 +98,6 @@ export default function SimulationPlane({
       uXSplit: { value: 0 },
       uYSplit: { value: 0 },
     }),
-    // Build uniforms once; toggling is handled via direct mutation below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   );
@@ -124,8 +122,7 @@ export default function SimulationPlane({
         uniforms={uniforms}
         toneMapped={false}
         depthWrite={true}
-        // Enable derivatives so the fragment shader can use fwidth()
-        // for screen-space iso-contour line widths.
+        // Enable derivatives for fwidth() in the fragment shader.
         extensions={{ derivatives: true } as unknown as never}
       />
     </mesh>

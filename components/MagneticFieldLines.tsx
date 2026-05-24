@@ -14,11 +14,10 @@ type Props = {
   onReady?: () => void;
 };
 
-// Renders pre-computed magnetic field streamlines as Three.js LineSegments.
-// At mount, kicks off a Worker that traces every seed at every frame in
-// the simulation's time loop. Per-frame, useFrame swaps the rendered
-// geometry to the right precomputed buffer - effectively zero JS work,
-// and the heavy field math never blocks the main thread.
+// Precomputed magnetic-field streamlines drawn as Three.js LineSegments.
+// A Worker traces each seed at every frame at mount; useFrame swaps the
+// rendered BufferGeometry per frame so the main thread does almost no
+// work during playback.
 export default function MagneticFieldLines({
   timeRef,
   visible = true,
@@ -72,8 +71,7 @@ export default function MagneticFieldLines({
     [],
   );
 
-  // Per-frame: swap the geometry on the existing lineSegments object.
-  // No React re-render; just a buffer rebind.
+  // Per-frame: swap geometry on the existing LineSegments — no React re-render.
   useFrame(() => {
     if (!geometries || !lineRef.current) return;
     const t = timeRef.current;
@@ -87,8 +85,6 @@ export default function MagneticFieldLines({
     }
   });
 
-  // While precomputing, render nothing. Initial render uses the first frame
-  // once available so there's no flash of empty before the first useFrame.
   if (!geometries) return null;
 
   return <lineSegments ref={lineRef} geometry={geometries[0]} material={material} />;

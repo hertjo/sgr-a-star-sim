@@ -15,8 +15,6 @@ vec3 inferno(float t) {
 }
 
 // "Hot" density colormap: black -> dark red -> red -> orange -> white.
-// The right-panel density visualization in the source video has a
-// roughly black/gray -> red/orange -> white ramp.
 vec3 hotDensity(float t) {
   t = clamp(t, 0.0, 1.0);
   vec3 c;

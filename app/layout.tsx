@@ -13,9 +13,9 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Sgr A* Simulation — Andrew Chael",
+  title: "Sgr A* Simulation",
   description:
-    "Interactive recreation of a GRMHD-style accretion flow around Sagittarius A*.",
+    "Interactive visualization of a GRMHD accretion flow around Sagittarius A*.",
 };
 
 export default function RootLayout({

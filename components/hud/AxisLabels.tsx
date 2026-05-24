@@ -1,6 +1,3 @@
-// X-axis tick labels rendered just above the bottom Magnetic Field Strength bar.
-// Ticks match the source video: -60, -40, -20, 0, 20, 40, 60.
-
 const TICKS = [-60, -40, -20, 0, 20, 40, 60];
 const X_MIN = -60;
 const X_MAX = 60;
