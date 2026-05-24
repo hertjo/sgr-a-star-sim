@@ -9,5 +9,6 @@
 
 public/grmhd/*.png        filter=lfs diff=lfs merge=lfs -text
 public/grmhd/*.webp       filter=lfs diff=lfs merge=lfs -text
+public/grmhd/*.gif        filter=lfs diff=lfs merge=lfs -text
 public/grmhd/*.bin        filter=lfs diff=lfs merge=lfs -text
 public/grmhd/*.zip        filter=lfs diff=lfs merge=lfs -text
