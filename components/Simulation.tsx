@@ -75,6 +75,7 @@ export default function Simulation() {
           </Suspense>
           <MagneticFieldLines
             time={time}
+            visible={!useData}
             onProgress={onStreamlineProgress}
             onReady={onStreamlineReady}
           />

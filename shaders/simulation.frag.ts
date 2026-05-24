@@ -15,6 +15,18 @@ const float PLOT_XMAX =  60.0;
 const float PLOT_YMIN = -30.0;
 const float PLOT_YMAX =  30.0;
 
+// Draws iso-contour bands of value v at integer multiples of "spacing".
+// Uses fwidth(v) so the band thickness stays roughly constant in screen
+// pixels regardless of how steep the gradient is locally — which means
+// the lines naturally hug the bright filaments in the Inu data instead
+// of forming big blobs in the dim outer regions.
+float isoContours(float v, float spacing) {
+  float phase = mod(v, spacing);
+  float toEdge = min(phase, spacing - phase);   // distance to nearest level
+  float fw = max(fwidth(v), 1e-5);
+  return smoothstep(fw * 1.6, fw * 0.4, toEdge);
+}
+
 // Sample a frame from the radiation-intensity atlas at (plot-space x, y).
 // Frame is selected by current uTime mapped onto uDataDuration.
 // Returns brightness in [0, 1] (log-normalized Inu).
@@ -90,31 +102,54 @@ void main() {
     float ring = exp(-pow((r - R_PHOTON) / 0.32, 2.0));
     col *= 1.0 - 0.55 * ring;
   } else {
-    // ---------------- Right half: Density (smooth continuous gradient) -------
-    // Density stays procedural for now — the public dataset only ships
-    // radially-averaged density profiles, not 2D snapshots.
-    float rho = density(p, uTime);
-    float rhoN = clamp(rho * 1.4, 0.0, 1.0);
-    rhoN = pow(rhoN, 0.7);
-
-    vec3 cBg     = vec3(0.97, 0.97, 0.96);
-    vec3 cCream  = vec3(0.97, 0.90, 0.85);
-    vec3 cSalmon = vec3(0.97, 0.65, 0.50);
-    vec3 cRed    = vec3(0.93, 0.30, 0.22);
-    vec3 cCore   = vec3(0.78, 0.18, 0.18);
-
-    if (rhoN < 0.25) {
-      col = mix(cBg, cCream, rhoN / 0.25);
-    } else if (rhoN < 0.55) {
-      col = mix(cCream, cSalmon, (rhoN - 0.25) / 0.30);
-    } else if (rhoN < 0.85) {
-      col = mix(cSalmon, cRed, (rhoN - 0.55) / 0.30);
+    // ---------------- Right half: Density --------------------------------------
+    // Synchrotron emissivity ~ rho * |B|^2 * T_e, so the Yoon Inu atlas is
+    // structurally a strong proxy for plasma density. We sample the same
+    // atlas as the left half but push it through a soft pink->red density
+    // colormap, exactly mirroring how the reference video's density panel
+    // looks (smooth bright plasma core fading into an off-white background).
+    float rhoN;
+    if (uUseData > 0.5) {
+      rhoN = sampleRadAtlas(p);
+      // Push dim/outer regions hard toward off-white background so the
+      // density panel reads as "smooth plasma blob on white" like the
+      // reference, with the filaments only barely showing in the bright
+      // disk core.
+      rhoN = pow(rhoN, 3.0);
     } else {
-      col = mix(cRed, cCore, (rhoN - 0.85) / 0.15);
+      float rho = density(p, uTime);
+      rhoN = pow(clamp(rho * 1.4, 0.0, 1.0), 0.7);
     }
+
+    // Smooth two-segment blend (no piecewise stops -> no visible banding):
+    //   bg -> mid (salmon) over [0, 0.6]
+    //   mid -> core (deep red) over [0.6, 1]
+    vec3 cBg   = vec3(0.96, 0.96, 0.95);
+    vec3 cMid  = vec3(0.97, 0.72, 0.62);
+    vec3 cCore = vec3(0.88, 0.30, 0.25);
+    col = mix(
+      mix(cBg, cMid, smoothstep(0.0, 0.6, rhoN)),
+      cCore,
+      smoothstep(0.55, 1.0, rhoN)
+    );
 
     float ring = exp(-pow((r - R_PHOTON) / 0.32, 2.0));
     col *= 1.0 - 0.55 * ring;
+  }
+
+  // ---------------- White iso-contours of the real Inu field --------------
+  // Only when sampling real GRMHD data and only on the left half (the
+  // radiation / |B| panels — the density panel in the reference has no
+  // contour overlay). The contours are derived from the same field that
+  // colors the background, so by construction they trace the actual
+  // bright filaments instead of an unrelated procedural topology.
+  if (uUseData > 0.5 && p.x < 0.0 && r > R_PHOTON + 0.3) {
+    float vSample = sampleRadAtlas(p);
+    float line = isoContours(vSample, 0.075);     // ~13 contour levels
+    // Strongest where there's actually emission so dim outer regions
+    // don't get hatched.
+    line *= smoothstep(0.05, 0.25, vSample);
+    col = mix(col, vec3(1.0), line * 0.85);
   }
 
   // ---------------- Subtle vertical divider at x = 0 -----------------------

@@ -9,6 +9,7 @@ const DURATION = 37;
 
 type Props = {
   time: number;
+  visible?: boolean;
   onProgress?: (p: number) => void;
   onReady?: () => void;
 };
@@ -20,6 +21,7 @@ type Props = {
 // and the heavy field math never blocks the main thread.
 export default function MagneticFieldLines({
   time,
+  visible = true,
   onProgress,
   onReady,
 }: Props) {
@@ -81,6 +83,9 @@ export default function MagneticFieldLines({
     const g = geometries[idx];
     if (lineRef.current.geometry !== g) {
       lineRef.current.geometry = g;
+    }
+    if (lineRef.current.visible !== visible) {
+      lineRef.current.visible = visible;
     }
   });
 

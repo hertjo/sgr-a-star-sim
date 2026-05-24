@@ -114,6 +114,9 @@ export default function SimulationPlane({
         uniforms={uniforms}
         toneMapped={false}
         depthWrite={true}
+        // Enable derivatives so the fragment shader can use fwidth()
+        // for screen-space iso-contour line widths.
+        extensions={{ derivatives: true } as unknown as never}
       />
     </mesh>
   );
