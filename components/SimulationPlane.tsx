@@ -32,7 +32,7 @@ const FRAGMENT_SHADER = [
 ].join("\n");
 
 type SimulationPlaneProps = {
-  time: number;
+  timeRef: React.MutableRefObject<number>;
   useData: boolean;
   dataDuration: number;
 };
@@ -48,7 +48,7 @@ type Manifest = {
 };
 
 export default function SimulationPlane({
-  time,
+  timeRef,
   useData,
   dataDuration,
 }: SimulationPlaneProps) {
@@ -99,7 +99,7 @@ export default function SimulationPlane({
   useFrame(() => {
     if (!materialRef.current) return;
     const u = materialRef.current.uniforms;
-    (u.uTime as { value: number }).value = time;
+    (u.uTime as { value: number }).value = timeRef.current;
     (u.uUseData as { value: number }).value = useData ? 1 : 0;
     (u.uDataDuration as { value: number }).value = dataDuration;
   });

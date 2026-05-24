@@ -8,7 +8,7 @@ const FRAMES = 60;
 const DURATION = 37;
 
 type Props = {
-  time: number;
+  timeRef: React.MutableRefObject<number>;
   visible?: boolean;
   onProgress?: (p: number) => void;
   onReady?: () => void;
@@ -20,7 +20,7 @@ type Props = {
 // geometry to the right precomputed buffer - effectively zero JS work,
 // and the heavy field math never blocks the main thread.
 export default function MagneticFieldLines({
-  time,
+  timeRef,
   visible = true,
   onProgress,
   onReady,
@@ -29,8 +29,6 @@ export default function MagneticFieldLines({
     null,
   );
   const lineRef = useRef<THREE.LineSegments>(null);
-  const timeRef = useRef(time);
-  timeRef.current = time;
 
   useEffect(() => {
     const worker = new Worker(

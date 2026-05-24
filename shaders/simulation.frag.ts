@@ -28,30 +28,41 @@ float isoContours(float v, float spacing) {
 }
 
 // Sample a frame from the radiation-intensity atlas at (plot-space x, y).
-// Frame is selected by current uTime mapped onto uDataDuration.
-// Returns brightness in [0, 1] (log-normalized Inu).
+// The frame index is a continuous fraction of uTime; we sample both the
+// floor and ceil frames and linearly interpolate between them so the
+// plasma evolves smoothly instead of jumping every ~370ms when crossing
+// a frame boundary (101 frames over 37s = visible stepping otherwise).
+float sampleAtlasFrame(float u, float v, float f) {
+  float col = mod(f, uAtlasCols);
+  float row = floor(f / uAtlasCols);
+  vec2 uv = vec2(
+    (col + u) / uAtlasCols,
+    (row + v) / uAtlasRows
+  );
+  return texture2D(uRadAtlas, uv).r;
+}
+
 float sampleRadAtlas(vec2 p) {
   // Plot -> in-frame UV (V starts at top of plot because the atlas was
   // baked with flipY=false; the python script already flipped the array).
   float u = (p.x - PLOT_XMIN) / (PLOT_XMAX - PLOT_XMIN);
   float v = (PLOT_YMAX - p.y) / (PLOT_YMAX - PLOT_YMIN);
-  // Clamp inside tile so we never bleed across tile borders during
-  // bilinear filtering.
-  float pad = 0.5 / 256.0;     // half-texel of tile (TILE_W = 256)
+  // Clamp inside tile so bilinear filtering never bleeds across borders.
+  float pad = 0.5 / 256.0;
   u = clamp(u, pad, 1.0 - pad);
   v = clamp(v, pad, 1.0 - pad);
 
-  float f = floor(mod(uTime, uDataDuration) / uDataDuration * uAtlasFrames);
-  f = clamp(f, 0.0, uAtlasFrames - 1.0);
+  float fContinuous = mod(uTime, uDataDuration) / uDataDuration * uAtlasFrames;
+  float fa = floor(fContinuous);
+  float fb = mod(fa + 1.0, uAtlasFrames);
+  float t = fContinuous - fa;
+  // Smoothstep the interpolation so the eye reads it as truly continuous
+  // motion rather than a piecewise-linear "ease".
+  t = t * t * (3.0 - 2.0 * t);
 
-  float col = mod(f, uAtlasCols);
-  float row = floor(f / uAtlasCols);
-
-  vec2 atlasUV = vec2(
-    (col + u) / uAtlasCols,
-    (row + v) / uAtlasRows
-  );
-  return texture2D(uRadAtlas, atlasUV).r;
+  float a = sampleAtlasFrame(u, v, fa);
+  float b = sampleAtlasFrame(u, v, fb);
+  return mix(a, b, t);
 }
 
 void main() {

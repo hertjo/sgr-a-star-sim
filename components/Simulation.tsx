@@ -15,34 +15,44 @@ import PlayerControls from "@/components/hud/PlayerControls";
 import LoadingOverlay from "@/components/hud/LoadingOverlay";
 import ModeToggle from "@/components/hud/ModeToggle";
 
-const DURATION = 37;        // seconds — display clock loop length
-const DATA_DURATION = 37;   // seconds the atlas should loop over
+const DURATION = 37;
+const DATA_DURATION = 37;
+const DISPLAY_UPDATE_MS = 250;   // how often to refresh the scrubber readout
 
 type CameraHandle = { reset: () => void };
 
 export default function Simulation() {
-  const [time, setTime] = useState(0);
+  // Time is held in a ref — read by SimulationPlane & MagneticFieldLines
+  // inside useFrame and used directly to drive the shader uniform. It is
+  // NOT React state, so updating it does not re-render the tree every
+  // frame. Only the PlayerControls scrubber needs a periodically-updated
+  // React value, which we throttle to DISPLAY_UPDATE_MS.
+  const timeRef = useRef(0);
+  const [displayTime, setDisplayTime] = useState(0);
+
   const [playing, setPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
   const [ready, setReady] = useState(false);
   const [useData, setUseData] = useState(true);
-  const lastTickRef = useRef<number | null>(null);
   const cameraRef = useRef<CameraHandle | null>(null);
 
+  // Animation loop — pure rAF, no per-frame setState. Stops when paused
+  // or while the streamline worker is still preparing geometry.
   useEffect(() => {
-    if (!playing || !ready) {
-      lastTickRef.current = null;
-      return;
-    }
+    if (!playing || !ready) return;
     let raf = 0;
-    const tick = (ts: number) => {
-      if (lastTickRef.current == null) lastTickRef.current = ts;
-      const dt = (ts - lastTickRef.current) / 1000;
-      lastTickRef.current = ts;
-      setTime((t) => {
-        const next = t + dt;
-        return next >= DURATION ? next - DURATION : next;
-      });
+    let lastTick = performance.now();
+    let lastDisplay = lastTick;
+    const tick = (now: number) => {
+      const dt = (now - lastTick) / 1000;
+      lastTick = now;
+      let next = timeRef.current + dt;
+      if (next >= DURATION) next -= DURATION;
+      timeRef.current = next;
+      if (now - lastDisplay >= DISPLAY_UPDATE_MS) {
+        setDisplayTime(next);
+        lastDisplay = now;
+      }
       raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
@@ -50,7 +60,10 @@ export default function Simulation() {
   }, [playing, ready]);
 
   const onTogglePlay = useCallback(() => setPlaying((p) => !p), []);
-  const onSeek = useCallback((t: number) => setTime(t), []);
+  const onSeek = useCallback((t: number) => {
+    timeRef.current = t;
+    setDisplayTime(t);
+  }, []);
   const onResetCamera = useCallback(() => cameraRef.current?.reset(), []);
   const onStreamlineProgress = useCallback((p: number) => setProgress(p), []);
   const onStreamlineReady = useCallback(() => setReady(true), []);
@@ -68,13 +81,13 @@ export default function Simulation() {
           <color attach="background" args={["#000000"]} />
           <Suspense fallback={null}>
             <SimulationPlane
-              time={time}
+              timeRef={timeRef}
               useData={useData}
               dataDuration={DATA_DURATION}
             />
           </Suspense>
           <MagneticFieldLines
-            time={time}
+            timeRef={timeRef}
             visible={!useData}
             onProgress={onStreamlineProgress}
             onReady={onStreamlineReady}
@@ -91,7 +104,7 @@ export default function Simulation() {
         <PlayerControls
           playing={playing}
           onTogglePlay={onTogglePlay}
-          time={time}
+          time={displayTime}
           duration={DURATION}
           onSeek={onSeek}
           onResetCamera={onResetCamera}
