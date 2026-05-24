@@ -21,6 +21,8 @@ uniform float uAtlasFrames;
 uniform float uAtlasCols;
 uniform float uAtlasRows;
 uniform float uDataDuration;  // seconds the atlas should loop over
+uniform float uXSplit;        // plot-space x of the vertical separator
+uniform float uYSplit;        // plot-space y of the horizontal separator
 `;
 
 const FRAGMENT_SHADER = [
@@ -35,6 +37,8 @@ type SimulationPlaneProps = {
   timeRef: React.MutableRefObject<number>;
   useData: boolean;
   dataDuration: number;
+  xSplitRef: React.MutableRefObject<number>;
+  ySplitRef: React.MutableRefObject<number>;
 };
 
 type Manifest = {
@@ -51,6 +55,8 @@ export default function SimulationPlane({
   timeRef,
   useData,
   dataDuration,
+  xSplitRef,
+  ySplitRef,
 }: SimulationPlaneProps) {
   const materialRef = useRef<THREE.ShaderMaterial>(null);
 
@@ -90,6 +96,8 @@ export default function SimulationPlane({
       uAtlasCols: { value: 11 },
       uAtlasRows: { value: 10 },
       uDataDuration: { value: dataDuration },
+      uXSplit: { value: 0 },
+      uYSplit: { value: 0 },
     }),
     // Build uniforms once; toggling is handled via direct mutation below.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -102,6 +110,8 @@ export default function SimulationPlane({
     (u.uTime as { value: number }).value = timeRef.current;
     (u.uUseData as { value: number }).value = useData ? 1 : 0;
     (u.uDataDuration as { value: number }).value = dataDuration;
+    (u.uXSplit as { value: number }).value = xSplitRef.current;
+    (u.uYSplit as { value: number }).value = ySplitRef.current;
   });
 
   return (

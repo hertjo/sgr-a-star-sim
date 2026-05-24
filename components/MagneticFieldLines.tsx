@@ -5,7 +5,7 @@ import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
 const FRAMES = 60;
-const DURATION = 45;
+const DURATION = 180;
 
 type Props = {
   timeRef: React.MutableRefObject<number>;

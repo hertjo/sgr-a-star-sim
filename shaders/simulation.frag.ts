@@ -79,8 +79,8 @@ void main() {
 
   vec3 col;
 
-  if (p.x < 0.0) {
-    // ---------------- Left half: split at the equator (y = 0) -----------------
+  if (p.x < uXSplit) {
+    // ---------------- Left half: split at the equator (uYSplit) ---------------
     float radValue;
     if (uUseData > 0.5) {
       // Real Sgr A* GRMHD radiation intensity (Yoon+ 2020) — same field
@@ -94,12 +94,12 @@ void main() {
       // Procedural fallback.
       float P = radiationPower(p, uTime);
       float B = bFieldMag(p, uTime);
-      radValue = (p.y >= 0.0)
+      radValue = (p.y >= uYSplit)
         ? pow(clamp(P / 1.0, 0.0, 1.0), 0.55)
         : pow(clamp(B / 1.6, 0.0, 1.0), 0.65);
     }
 
-    if (p.y >= 0.0) {
+    if (p.y >= uYSplit) {
       // Top: Radiation Power -> viridis.
       col = viridis(radValue);
     } else {
@@ -107,13 +107,9 @@ void main() {
       col = inferno(radValue);
     }
 
-    // Thin equator divider line, just like the source.
-    float eqLine = smoothstep(0.18, 0.0, abs(p.y));
+    // Thin horizontal divider line at the y-split.
+    float eqLine = smoothstep(0.18, 0.0, abs(p.y - uYSplit));
     col = mix(col, vec3(0.0), eqLine * 0.5);
-
-    // Photon ring darkening.
-    float ring = exp(-pow((r - R_PHOTON) / 0.32, 2.0));
-    col *= 1.0 - 0.55 * ring;
   } else {
     // ---------------- Right half: Density --------------------------------------
     // Synchrotron emissivity ~ rho * |B|^2 * T_e, so the Yoon Inu atlas is
@@ -124,31 +120,27 @@ void main() {
     float rhoN;
     if (uUseData > 0.5) {
       rhoN = sampleRadAtlas(p);
-      // Push dim/outer regions toward off-white background so the density
-      // panel reads as "smooth plasma blob on white" like the reference.
-      // Gamma 1.7 is tuned for the sqrt-normalized atlas — older code used
-      // 3.0 which was correct for log-normalized values and washed out
-      // here.
-      rhoN = pow(rhoN, 1.7);
+      // Gamma 1.0 (linear) so dim outer regions stay black and bright
+      // plasma stays bright — matching the NASA-style black-on-orange
+      // black-hole render the user pointed to.
+      rhoN = pow(rhoN, 1.0);
     } else {
       float rho = density(p, uTime);
       rhoN = pow(clamp(rho * 1.4, 0.0, 1.0), 0.7);
     }
 
-    // Smooth two-segment blend (no piecewise stops -> no visible banding):
-    //   bg -> mid (salmon) over [0, 0.6]
-    //   mid -> core (deep red) over [0.6, 1]
-    vec3 cBg   = vec3(0.96, 0.96, 0.95);
-    vec3 cMid  = vec3(0.97, 0.72, 0.62);
-    vec3 cCore = vec3(0.88, 0.30, 0.25);
-    col = mix(
-      mix(cBg, cMid, smoothstep(0.0, 0.6, rhoN)),
-      cCore,
-      smoothstep(0.55, 1.0, rhoN)
-    );
+    // NASA-style black -> deep red -> red-orange -> bright orange -> yellow.
+    // Smoothstep-blended so there are no visible banding rings.
+    vec3 cBlack    = vec3(0.00, 0.00, 0.00);
+    vec3 cDeepRed  = vec3(0.30, 0.03, 0.02);
+    vec3 cRed      = vec3(0.80, 0.15, 0.05);
+    vec3 cOrange   = vec3(1.00, 0.50, 0.10);
+    vec3 cYellow   = vec3(1.00, 0.85, 0.45);
 
-    float ring = exp(-pow((r - R_PHOTON) / 0.32, 2.0));
-    col *= 1.0 - 0.55 * ring;
+    col =       mix(cBlack,   cDeepRed, smoothstep(0.00, 0.20, rhoN));
+    col = mix(col, cRed,      smoothstep(0.18, 0.50, rhoN));
+    col = mix(col, cOrange,   smoothstep(0.45, 0.80, rhoN));
+    col = mix(col, cYellow,   smoothstep(0.80, 1.00, rhoN));
   }
 
   // ---------------- White iso-contours of the real Inu field --------------
@@ -157,7 +149,7 @@ void main() {
   // contour overlay). The contours are derived from the same field that
   // colors the background, so by construction they trace the actual
   // bright filaments instead of an unrelated procedural topology.
-  if (uUseData > 0.5 && p.x < 0.0 && r > R_PHOTON + 0.3) {
+  if (uUseData > 0.5 && p.x < uXSplit && r > R_PHOTON + 0.3) {
     float vSample = sampleRadAtlas(p);
     float line = isoContours(vSample, 0.075);     // ~13 contour levels
     // Strongest where there's actually emission so dim outer regions
@@ -166,8 +158,8 @@ void main() {
     col = mix(col, vec3(1.0), line * 0.85);
   }
 
-  // ---------------- Subtle vertical divider at x = 0 -----------------------
-  float divider = smoothstep(0.14, 0.0, abs(p.x));
+  // ---------------- Subtle vertical divider at uXSplit ----------------------
+  float divider = smoothstep(0.14, 0.0, abs(p.x - uXSplit));
   col = mix(col, vec3(0.0), divider * 0.55);
 
   gl_FragColor = vec4(col, 1.0);

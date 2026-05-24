@@ -14,23 +14,20 @@ import BottomColorbar from "@/components/hud/BottomColorbar";
 import PlayerControls from "@/components/hud/PlayerControls";
 import LoadingOverlay from "@/components/hud/LoadingOverlay";
 import ModeToggle from "@/components/hud/ModeToggle";
+import SeparatorHandles from "@/components/hud/SeparatorHandles";
 
 // Wall-clock loop length. The Yoon dataset's 101 frames span 5000 r_g/c of
-// simulation time (~28 hours of real Sgr A* accretion); 45s of playback
-// gives ~440ms per frame, slow enough that the smoothstep-interpolated
-// plasma motion reads as continuous evolution rather than a fast cycle.
-const DURATION = 45;
-const DATA_DURATION = 45;
-const DISPLAY_UPDATE_MS = 250;   // how often to refresh the scrubber readout
+// simulation time (~28 hours of real Sgr A* accretion). At 180s playback
+// each frame is shown for ~1.8s, slow enough that the linear interp
+// between adjacent frames reads as a steady evolution rather than a
+// pulsation between two states.
+const DURATION = 180;
+const DATA_DURATION = 180;
+const DISPLAY_UPDATE_MS = 250;
 
 type CameraHandle = { reset: () => void };
 
 export default function Simulation() {
-  // Time is held in a ref — read by SimulationPlane & MagneticFieldLines
-  // inside useFrame and used directly to drive the shader uniform. It is
-  // NOT React state, so updating it does not re-render the tree every
-  // frame. Only the PlayerControls scrubber needs a periodically-updated
-  // React value, which we throttle to DISPLAY_UPDATE_MS.
   const timeRef = useRef(0);
   const [displayTime, setDisplayTime] = useState(0);
 
@@ -38,10 +35,16 @@ export default function Simulation() {
   const [progress, setProgress] = useState(0);
   const [ready, setReady] = useState(false);
   const [useData, setUseData] = useState(true);
+
+  // Separator positions live in refs so dragging mutates them every
+  // mousemove without re-rendering the React tree. A `_renderTick` state
+  // is bumped only to drive the visible handle position via re-render.
+  const xSplitRef = useRef(0);
+  const ySplitRef = useRef(0);
+  const [, forceTick] = useState(0);
+
   const cameraRef = useRef<CameraHandle | null>(null);
 
-  // Animation loop — pure rAF, no per-frame setState. Stops when paused
-  // or while the streamline worker is still preparing geometry.
   useEffect(() => {
     if (!playing || !ready) return;
     let raf = 0;
@@ -73,6 +76,23 @@ export default function Simulation() {
   const onStreamlineReady = useCallback(() => setReady(true), []);
   const onToggleMode = useCallback(() => setUseData((v) => !v), []);
 
+  const onSplitChange = useCallback(
+    ({ x, y }: { x?: number; y?: number }) => {
+      if (x !== undefined) xSplitRef.current = x;
+      if (y !== undefined) ySplitRef.current = y;
+      // Bump a counter to repaint the React-rendered drag handles. The
+      // shader uniforms are read from refs each frame, so they update
+      // without needing this.
+      forceTick((c) => c + 1);
+    },
+    [],
+  );
+  const onCenter = useCallback(() => {
+    xSplitRef.current = 0;
+    ySplitRef.current = 0;
+    forceTick((c) => c + 1);
+  }, []);
+
   return (
     <div className="relative h-full w-full bg-black">
       <div className="absolute left-1/2 top-1/2 aspect-[2/1] w-[min(96vw,calc(96vh*2))] -translate-x-1/2 -translate-y-1/2 overflow-hidden bg-black ring-1 ring-white/5">
@@ -88,6 +108,8 @@ export default function Simulation() {
               timeRef={timeRef}
               useData={useData}
               dataDuration={DATA_DURATION}
+              xSplitRef={xSplitRef}
+              ySplitRef={ySplitRef}
             />
           </Suspense>
           <MagneticFieldLines
@@ -104,6 +126,11 @@ export default function Simulation() {
         <LeftColorbars />
         <AxisLabels />
         <BottomColorbar />
+        <SeparatorHandles
+          xSplit={xSplitRef.current}
+          ySplit={ySplitRef.current}
+          onChange={onSplitChange}
+        />
         <ModeToggle useData={useData} onToggle={onToggleMode} />
         <PlayerControls
           playing={playing}
@@ -112,6 +139,7 @@ export default function Simulation() {
           duration={DURATION}
           onSeek={onSeek}
           onResetCamera={onResetCamera}
+          onCenterSplits={onCenter}
         />
 
         {!ready && <LoadingOverlay progress={progress} />}

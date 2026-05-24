@@ -1,6 +1,6 @@
 "use client";
 
-import { Pause, Play, RotateCcw } from "lucide-react";
+import { Crosshair, Pause, Play, RotateCcw } from "lucide-react";
 
 type Props = {
   playing: boolean;
@@ -9,6 +9,7 @@ type Props = {
   duration: number;
   onSeek: (t: number) => void;
   onResetCamera: () => void;
+  onCenterSplits: () => void;
 };
 
 function fmt(seconds: number): string {
@@ -25,20 +26,31 @@ export default function PlayerControls({
   duration,
   onSeek,
   onResetCamera,
+  onCenterSplits,
 }: Props) {
   const pct = duration > 0 ? Math.min(100, (time / duration) * 100) : 0;
 
   return (
     <>
-      {/* Top-right: just a camera-reset button (orbit reset). */}
-      <button
-        type="button"
-        onClick={onResetCamera}
-        className="absolute right-3 top-3 z-10 rounded p-1 text-white/85 transition hover:bg-white/10"
-        title="Reset camera"
-      >
-        <RotateCcw size={18} />
-      </button>
+      {/* Top-right cluster: camera reset + center splits. */}
+      <div className="absolute right-3 top-3 z-20 flex items-center gap-1">
+        <button
+          type="button"
+          onClick={onCenterSplits}
+          className="rounded p-1 text-white/85 transition hover:bg-white/10"
+          title="Center separators (x=0, y=0)"
+        >
+          <Crosshair size={18} />
+        </button>
+        <button
+          type="button"
+          onClick={onResetCamera}
+          className="rounded p-1 text-white/85 transition hover:bg-white/10"
+          title="Reset camera"
+        >
+          <RotateCcw size={18} />
+        </button>
+      </div>
 
       {/* Bottom controls — minimal: play/pause + scrubber + time. */}
       <div className="pointer-events-none absolute inset-x-0 bottom-0 z-20">
