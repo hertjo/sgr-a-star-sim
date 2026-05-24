@@ -40,7 +40,10 @@ PLOT_YMIN, PLOT_YMAX = -30.0, 30.0
 TILE_W = 256
 TILE_H = 128
 
-# Atlas grid (frames laid out in columns x rows).  101 frames -> 11x10 grid.
+# Atlas grid (frames laid out in columns x rows). Chosen so columns*rows
+# >= number of frames in the source file. 11 cols fits the 101-frame Yoon
+# inc90 file in an 11x10 grid; bump up if you bring in a longer time
+# series.
 ATLAS_COLS = 11
 
 

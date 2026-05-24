@@ -15,8 +15,12 @@ import PlayerControls from "@/components/hud/PlayerControls";
 import LoadingOverlay from "@/components/hud/LoadingOverlay";
 import ModeToggle from "@/components/hud/ModeToggle";
 
-const DURATION = 37;
-const DATA_DURATION = 37;
+// Wall-clock loop length. The Yoon dataset's 101 frames span 5000 r_g/c of
+// simulation time (~28 hours of real Sgr A* accretion); 45s of playback
+// gives ~440ms per frame, slow enough that the smoothstep-interpolated
+// plasma motion reads as continuous evolution rather than a fast cycle.
+const DURATION = 45;
+const DATA_DURATION = 45;
 const DISPLAY_UPDATE_MS = 250;   // how often to refresh the scrubber readout
 
 type CameraHandle = { reset: () => void };

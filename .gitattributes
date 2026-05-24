@@ -1,0 +1,13 @@
+# Route large baked GRMHD textures through Git LFS so the repo doesn't
+# bloat as we add more frames. The current 1.3 MB inu_atlas.png is small
+# enough to live in git proper; this rule kicks in if the atlas grows
+# (e.g. when we extend the simulated time window) and for any future
+# multi-megabyte assets we drop here.
+#
+# To migrate an existing in-git file to LFS later:
+#   git lfs migrate import --include="public/grmhd/inu_atlas.png" --everything
+
+public/grmhd/*.png        filter=lfs diff=lfs merge=lfs -text
+public/grmhd/*.webp       filter=lfs diff=lfs merge=lfs -text
+public/grmhd/*.bin        filter=lfs diff=lfs merge=lfs -text
+public/grmhd/*.zip        filter=lfs diff=lfs merge=lfs -text
