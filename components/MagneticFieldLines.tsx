@@ -1,81 +1,64 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useFrame } from "@react-three/fiber";
 import * as THREE from "three";
 
-import { R_HORIZON, traceStreamline } from "@/lib/fieldMath";
+const FRAMES = 60;
+const DURATION = 37;
 
 type Props = {
   time: number;
+  onProgress?: (p: number) => void;
+  onReady?: () => void;
 };
 
-// Static seed grid sampled across the plot domain. The streamlines slowly
-// breathe in time because the underlying stream function depends on `time`,
-// but we recompute only every few frames to keep this cheap.
-const SEEDS: Array<[number, number]> = (() => {
-  const seeds: Array<[number, number]> = [];
-  // Dense equatorial seeding — wound up flux loops thread the disk.
-  for (let xi = -55; xi <= 55; xi += 3.5) {
-    seeds.push([xi, 0.4]);
-    seeds.push([xi, -0.4]);
-    seeds.push([xi, 2.5]);
-    seeds.push([xi, -2.5]);
-  }
-  // Mid-latitude seeds — show the field arcing up out of the disk.
-  for (let xi = -32; xi <= 32; xi += 5) {
-    seeds.push([xi, 6]);
-    seeds.push([xi, -6]);
-    seeds.push([xi, 12]);
-    seeds.push([xi, -12]);
-    seeds.push([xi, 18]);
-    seeds.push([xi, -18]);
-  }
-  // Polar / jet seeds — open field lines leaving the funnel.
-  for (let yi = -28; yi <= 28; yi += 3) {
-    seeds.push([0.5, yi]);
-    seeds.push([-0.5, yi]);
-    seeds.push([1.5, yi]);
-    seeds.push([-1.5, yi]);
-  }
-  // Golden-angle scatter for variety in the outer flow.
-  for (let i = 0; i < 90; i++) {
-    const ang = (i * 137.508 * Math.PI) / 180;
-    const rad = 5 + 35 * Math.sqrt((i + 1) / 90);
-    seeds.push([Math.cos(ang) * rad, Math.sin(ang) * rad * 0.5]);
-  }
-  return seeds.filter(([x, y]) => Math.hypot(x, y) > R_HORIZON + 0.5);
-})();
+// Renders pre-computed magnetic field streamlines as Three.js LineSegments.
+// At mount, kicks off a Worker that traces every seed at every frame in
+// the simulation's time loop. Per-frame, useFrame swaps the rendered
+// geometry to the right precomputed buffer - effectively zero JS work,
+// and the heavy field math never blocks the main thread.
+export default function MagneticFieldLines({
+  time,
+  onProgress,
+  onReady,
+}: Props) {
+  const [geometries, setGeometries] = useState<THREE.BufferGeometry[] | null>(
+    null,
+  );
+  const lineRef = useRef<THREE.LineSegments>(null);
+  const timeRef = useRef(time);
+  timeRef.current = time;
 
-export default function MagneticFieldLines({ time }: Props) {
-  // Re-trace at a discrete cadence (every 0.5 sim seconds) for performance.
-  // This still gives smooth visual motion because the streamlines themselves
-  // change shape slowly between samples.
-  const sampleTime = Math.round(time * 2) / 2;
-
-  const geometry = useMemo(() => {
-    const positions: number[] = [];
-    for (const [sx, sy] of SEEDS) {
-      const line = traceStreamline(sx, sy, sampleTime, {
-        stepSize: 0.45,
-        maxSteps: 180,
-        maxRadius: 56,
-      });
-      if (line.length < 2) continue;
-      // Emit as LineSegments (pairs of vertices).
-      for (let i = 0; i < line.length - 1; i++) {
-        const [x1, y1] = line[i];
-        const [x2, y2] = line[i + 1];
-        positions.push(x1, y1, 0.05, x2, y2, 0.05);
-      }
-    }
-    const geom = new THREE.BufferGeometry();
-    geom.setAttribute(
-      "position",
-      new THREE.Float32BufferAttribute(positions, 3),
+  useEffect(() => {
+    const worker = new Worker(
+      new URL("@/lib/streamlineWorker.ts", import.meta.url),
+      { type: "module" },
     );
-    return geom;
-    // sampleTime intentionally drives re-trace cadence.
-  }, [sampleTime]);
+
+    worker.onmessage = (e: MessageEvent) => {
+      const msg = e.data as
+        | { type: "progress"; current: number; total: number }
+        | { type: "done"; buffers: Float32Array[] };
+      if (msg.type === "progress") {
+        onProgress?.(msg.current / msg.total);
+      } else if (msg.type === "done") {
+        const geoms = msg.buffers.map((arr) => {
+          const g = new THREE.BufferGeometry();
+          g.setAttribute("position", new THREE.BufferAttribute(arr, 3));
+          return g;
+        });
+        setGeometries(geoms);
+        onReady?.();
+      }
+    };
+
+    worker.postMessage({ frames: FRAMES, duration: DURATION });
+
+    return () => {
+      worker.terminate();
+    };
+  }, [onProgress, onReady]);
 
   const material = useMemo(
     () =>
@@ -89,5 +72,21 @@ export default function MagneticFieldLines({ time }: Props) {
     [],
   );
 
-  return <lineSegments geometry={geometry} material={material} />;
+  // Per-frame: swap the geometry on the existing lineSegments object.
+  // No React re-render; just a buffer rebind.
+  useFrame(() => {
+    if (!geometries || !lineRef.current) return;
+    const t = timeRef.current;
+    const idx = Math.floor((t / DURATION) * FRAMES) % FRAMES;
+    const g = geometries[idx];
+    if (lineRef.current.geometry !== g) {
+      lineRef.current.geometry = g;
+    }
+  });
+
+  // While precomputing, render nothing. Initial render uses the first frame
+  // once available so there's no flash of empty before the first useFrame.
+  if (!geometries) return null;
+
+  return <lineSegments ref={lineRef} geometry={geometries[0]} material={material} />;
 }

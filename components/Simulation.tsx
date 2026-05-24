@@ -12,6 +12,7 @@ import AxisLabels from "@/components/hud/AxisLabels";
 import LeftColorbars from "@/components/hud/LeftColorbars";
 import BottomColorbar from "@/components/hud/BottomColorbar";
 import PlayerControls from "@/components/hud/PlayerControls";
+import LoadingOverlay from "@/components/hud/LoadingOverlay";
 
 const DURATION = 37; // seconds, matches "0:37" in the source video.
 
@@ -20,12 +21,14 @@ type CameraHandle = { reset: () => void };
 export default function Simulation() {
   const [time, setTime] = useState(0);
   const [playing, setPlaying] = useState(true);
+  const [progress, setProgress] = useState(0);
+  const [ready, setReady] = useState(false);
   const lastTickRef = useRef<number | null>(null);
   const cameraRef = useRef<CameraHandle | null>(null);
 
-  // Drive simulation time forward when playing.
+  // Drive simulation time forward when playing AND streamlines are ready.
   useEffect(() => {
-    if (!playing) {
+    if (!playing || !ready) {
       lastTickRef.current = null;
       return;
     }
@@ -42,13 +45,15 @@ export default function Simulation() {
     };
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
-  }, [playing]);
+  }, [playing, ready]);
 
   const onTogglePlay = useCallback(() => setPlaying((p) => !p), []);
   const onSeek = useCallback((t: number) => setTime(t), []);
   const onResetCamera = useCallback(() => {
     cameraRef.current?.reset();
   }, []);
+  const onStreamlineProgress = useCallback((p: number) => setProgress(p), []);
+  const onStreamlineReady = useCallback(() => setReady(true), []);
 
   return (
     <div className="relative h-full w-full bg-black">
@@ -62,7 +67,11 @@ export default function Simulation() {
         >
           <color attach="background" args={["#000000"]} />
           <SimulationPlane time={time} />
-          <MagneticFieldLines time={time} />
+          <MagneticFieldLines
+            time={time}
+            onProgress={onStreamlineProgress}
+            onReady={onStreamlineReady}
+          />
           <CameraController controlsRef={cameraRef} />
         </Canvas>
 
@@ -79,6 +88,8 @@ export default function Simulation() {
           onSeek={onSeek}
           onResetCamera={onResetCamera}
         />
+
+        {!ready && <LoadingOverlay progress={progress} />}
       </div>
     </div>
   );
