@@ -48,20 +48,33 @@ void main() {
     float ring = exp(-pow((r - R_PHOTON) / 0.32, 2.0));
     col *= 1.0 - 0.55 * ring;
   } else {
-    // ---------------- Right half: Density (soft, mostly grayscale) -----------
+    // ---------------- Right half: Density (smooth continuous gradient) -------
     float rho = density(p, uTime);
-    float rhoN = clamp(rho * 1.15, 0.0, 1.0);
-    rhoN = pow(rhoN, 0.95);
+    float rhoN = clamp(rho * 1.4, 0.0, 1.0);
+    rhoN = pow(rhoN, 0.7);
 
-    // Near-white background fades to soft gray in low-density wisps.
-    vec3 base = vec3(mix(0.95, 0.55, smoothstep(0.0, 0.7, rhoN)));
-    // Subtle red/pink tint in the densest plasma core only.
-    vec3 hot = hotDensity(rhoN);
-    col = mix(base, hot, smoothstep(0.45, 0.95, rhoN) * 0.85);
+    // Smooth ramp from off-white background -> cream -> salmon -> red-orange.
+    // No sharp threshold so the plasma reads as a continuous filled blob,
+    // matching the reference video's density panel.
+    vec3 cBg     = vec3(0.97, 0.97, 0.96);  // very pale gray-white background
+    vec3 cCream  = vec3(0.97, 0.90, 0.85);  // cream / pale pink
+    vec3 cSalmon = vec3(0.97, 0.65, 0.50);  // salmon pink
+    vec3 cRed    = vec3(0.93, 0.30, 0.22);  // bright red-orange
+    vec3 cCore   = vec3(0.78, 0.18, 0.18);  // darker red core for highest rho
+
+    if (rhoN < 0.25) {
+      col = mix(cBg, cCream, rhoN / 0.25);
+    } else if (rhoN < 0.55) {
+      col = mix(cCream, cSalmon, (rhoN - 0.25) / 0.30);
+    } else if (rhoN < 0.85) {
+      col = mix(cSalmon, cRed, (rhoN - 0.55) / 0.30);
+    } else {
+      col = mix(cRed, cCore, (rhoN - 0.85) / 0.15);
+    }
 
     // Photon ring darkening.
     float ring = exp(-pow((r - R_PHOTON) / 0.32, 2.0));
-    col *= 1.0 - 0.6 * ring;
+    col *= 1.0 - 0.55 * ring;
   }
 
   // ---------------- Subtle vertical divider at x = 0 -----------------------
