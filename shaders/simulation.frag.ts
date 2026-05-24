@@ -56,9 +56,11 @@ float sampleRadAtlas(vec2 p) {
   float fa = floor(fContinuous);
   float fb = mod(fa + 1.0, uAtlasFrames);
   float t = fContinuous - fa;
-  // Smoothstep the interpolation so the eye reads it as truly continuous
-  // motion rather than a piecewise-linear "ease".
-  t = t * t * (3.0 - 2.0 * t);
+  // PURE LINEAR interpolation (not smoothstep). Smoothstep has zero
+  // derivative at t=0 and t=1, which makes each ~445ms frame interval
+  // feel like "pause -> jump -> pause -> jump" — exactly the binary
+  // pulsing the user reported. Linear keeps the change rate constant
+  // across the whole interval, so the plasma reads as a steady glide.
 
   float a = sampleAtlasFrame(u, v, fa);
   float b = sampleAtlasFrame(u, v, fb);
