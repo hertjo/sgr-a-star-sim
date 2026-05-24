@@ -12,7 +12,7 @@ export default function ModeToggle({ useData, onToggle }: Props) {
     <button
       type="button"
       onClick={onToggle}
-      className="absolute right-12 top-3 z-10 flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] tracking-wide text-white/90 backdrop-blur-sm transition hover:bg-white/20"
+      className="absolute right-24 top-3 z-20 flex items-center gap-1.5 rounded-full bg-white/10 px-3 py-1 text-[11px] tracking-wide text-white/90 backdrop-blur-sm transition hover:bg-white/20"
       title={
         useData
           ? "Showing real Yoon+ 2020 GRMHD radiation data. Click for procedural."
