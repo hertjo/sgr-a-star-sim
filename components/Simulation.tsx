@@ -93,6 +93,23 @@ export default function Simulation() {
     forceTick((c) => c + 1);
   }, []);
 
+  // Test hook used by scripts/capture-gif.mjs to animate the separators
+  // during the demo recording. Inert in normal use.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const w = window as unknown as {
+      __setSplits?: (x: number, y: number) => void;
+    };
+    w.__setSplits = (x: number, y: number) => {
+      xSplitRef.current = x;
+      ySplitRef.current = y;
+      forceTick((c) => c + 1);
+    };
+    return () => {
+      delete w.__setSplits;
+    };
+  }, []);
+
   return (
     <div className="relative h-full w-full bg-black">
       <div className="absolute left-1/2 top-1/2 aspect-[2/1] w-[min(96vw,calc(96vh*2))] -translate-x-1/2 -translate-y-1/2 overflow-hidden bg-black ring-1 ring-white/5">

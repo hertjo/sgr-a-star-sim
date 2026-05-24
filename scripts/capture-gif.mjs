@@ -1,14 +1,17 @@
 // Record a short demo of the running dev server, then encode as an
 // optimized GIF for the README.
 //
-// Steps:
-//   1. Launch headless Chromium, open localhost:3010.
-//   2. Wait for the loading overlay to clear, seek to a moment of bright
-//      plasma activity so the GIF doesn't open on a quiet frame.
-//   3. Take N screenshots at a fixed interval (sim time evolves in
-//      between because the rAF loop drives uTime continuously).
-//   4. Run ffmpeg twice — once to extract a palette from the frame set,
-//      once to encode the GIF using that palette (smaller + cleaner).
+// The recording animates the separator handles so the GIF shows off the
+// drag interactions in addition to the plasma evolution.
+//
+//   t = 0.0 .. 1.5 s   plasma evolution at default (0, 0) split
+//   t = 1.5 .. 3.0 s   slide vertical separator to the right (+25 r_g)
+//   t = 3.0 .. 4.5 s   slide it back left to -25 r_g
+//   t = 4.5 .. 6.0 s   pull horizontal separator up to +12 r_g
+//   t = 6.0 .. 7.5 s   push it back down through 0 to -12 r_g
+//   t = 7.5 .. 9.0 s   recenter both, hold for a beat
+//
+// Driven via window.__setSplits, a small test hook in Simulation.tsx.
 //
 // Usage: node scripts/capture-gif.mjs [--out path] [--duration s] [--fps n]
 //
@@ -28,11 +31,29 @@ const args = Object.fromEntries(
     }, []),
 );
 const OUT = args.out ?? "public/grmhd/demo.gif";
-const DURATION_S = parseFloat(args.duration ?? "8");
-const FPS = parseInt(args.fps ?? "12", 10);
+const DURATION_S = parseFloat(args.duration ?? "9");
+const FPS = parseInt(args.fps ?? "10", 10);
 const N_FRAMES = Math.round(DURATION_S * FPS);
 const WIDTH = 720;
 const HEIGHT = 405;
+
+// Plot-space split position as a function of recording time.
+function splitsAt(t) {
+  const lerp = (a, b, k) => a + (b - a) * Math.max(0, Math.min(1, k));
+  const ease = (k) => {
+    const c = Math.max(0, Math.min(1, k));
+    return c * c * (3 - 2 * c); // smoothstep
+  };
+  if (t < 1.5) return { x: 0, y: 0 };
+  if (t < 3.0) return { x: lerp(0, 25, ease((t - 1.5) / 1.5)), y: 0 };
+  if (t < 4.5) return { x: lerp(25, -25, ease((t - 3.0) / 1.5)), y: 0 };
+  if (t < 6.0) return { x: -25, y: lerp(0, 12, ease((t - 4.5) / 1.5)) };
+  if (t < 7.5) return { x: -25, y: lerp(12, -12, ease((t - 6.0) / 1.5)) };
+  return {
+    x: lerp(-25, 0, ease((t - 7.5) / 1.5)),
+    y: lerp(-12, 0, ease((t - 7.5) / 1.5)),
+  };
+}
 
 const tmpDir = fs.mkdtempSync("/tmp/sgr-gif-");
 console.log(`Capturing ${N_FRAMES} frames @ ${FPS} fps into ${tmpDir}`);
@@ -50,8 +71,7 @@ await page
   .catch(() => null);
 await page.waitForTimeout(1500);
 
-// Seek to a time near a bright phase of the MAD pulsation (~t=80 in the
-// 180s loop corresponds roughly to a peak in totFnu).
+// Seek to a time near a bright phase of the MAD pulsation.
 await page.evaluate(() => {
   const r = document.querySelector('input[type="range"]');
   const ns = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value").set;
@@ -61,9 +81,22 @@ await page.evaluate(() => {
 });
 await page.waitForTimeout(500);
 
+// Sanity: confirm the test hook landed.
+const hookReady = await page.evaluate(() => typeof window.__setSplits === "function");
+if (!hookReady) {
+  console.warn(
+    "window.__setSplits not exposed — separators will stay centered. " +
+      "Make sure Simulation.tsx still ships the test hook.",
+  );
+}
+
 const start = Date.now();
 for (let i = 0; i < N_FRAMES; i++) {
   const tFrame = i / FPS;
+  const { x, y } = splitsAt(tFrame);
+  if (hookReady) {
+    await page.evaluate(({ x, y }) => window.__setSplits(x, y), { x, y });
+  }
   const target = start + tFrame * 1000;
   const wait = target - Date.now();
   if (wait > 0) await new Promise((r) => setTimeout(r, wait));
@@ -92,5 +125,4 @@ execSync(
 const size = fs.statSync(OUT).size;
 console.log(`Wrote ${OUT} — ${(size / 1024 / 1024).toFixed(2)} MB`);
 
-// Clean up frames
 fs.rmSync(tmpDir, { recursive: true, force: true });
