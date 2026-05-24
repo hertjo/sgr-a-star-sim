@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { Canvas } from "@react-three/fiber";
 
 import SimulationPlane from "@/components/SimulationPlane";
@@ -13,8 +13,10 @@ import LeftColorbars from "@/components/hud/LeftColorbars";
 import BottomColorbar from "@/components/hud/BottomColorbar";
 import PlayerControls from "@/components/hud/PlayerControls";
 import LoadingOverlay from "@/components/hud/LoadingOverlay";
+import ModeToggle from "@/components/hud/ModeToggle";
 
-const DURATION = 37; // seconds, matches "0:37" in the source video.
+const DURATION = 37;        // seconds — display clock loop length
+const DATA_DURATION = 37;   // seconds the atlas should loop over
 
 type CameraHandle = { reset: () => void };
 
@@ -23,10 +25,10 @@ export default function Simulation() {
   const [playing, setPlaying] = useState(true);
   const [progress, setProgress] = useState(0);
   const [ready, setReady] = useState(false);
+  const [useData, setUseData] = useState(true);
   const lastTickRef = useRef<number | null>(null);
   const cameraRef = useRef<CameraHandle | null>(null);
 
-  // Drive simulation time forward when playing AND streamlines are ready.
   useEffect(() => {
     if (!playing || !ready) {
       lastTickRef.current = null;
@@ -49,15 +51,13 @@ export default function Simulation() {
 
   const onTogglePlay = useCallback(() => setPlaying((p) => !p), []);
   const onSeek = useCallback((t: number) => setTime(t), []);
-  const onResetCamera = useCallback(() => {
-    cameraRef.current?.reset();
-  }, []);
+  const onResetCamera = useCallback(() => cameraRef.current?.reset(), []);
   const onStreamlineProgress = useCallback((p: number) => setProgress(p), []);
   const onStreamlineReady = useCallback(() => setReady(true), []);
+  const onToggleMode = useCallback(() => setUseData((v) => !v), []);
 
   return (
     <div className="relative h-full w-full bg-black">
-      {/* Plot box — 2:1 aspect, sized to fit viewport with HUD breathing room */}
       <div className="absolute left-1/2 top-1/2 aspect-[2/1] w-[min(96vw,calc(96vh*2))] -translate-x-1/2 -translate-y-1/2 overflow-hidden bg-black ring-1 ring-white/5">
         <Canvas
           camera={{ position: [0, 0, 78], fov: 42, near: 0.1, far: 600 }}
@@ -66,7 +66,13 @@ export default function Simulation() {
           style={{ position: "absolute", inset: 0 }}
         >
           <color attach="background" args={["#000000"]} />
-          <SimulationPlane time={time} />
+          <Suspense fallback={null}>
+            <SimulationPlane
+              time={time}
+              useData={useData}
+              dataDuration={DATA_DURATION}
+            />
+          </Suspense>
           <MagneticFieldLines
             time={time}
             onProgress={onStreamlineProgress}
@@ -80,6 +86,7 @@ export default function Simulation() {
         <LeftColorbars />
         <AxisLabels />
         <BottomColorbar />
+        <ModeToggle useData={useData} onToggle={onToggleMode} />
         <PlayerControls
           playing={playing}
           onTogglePlay={onTogglePlay}
