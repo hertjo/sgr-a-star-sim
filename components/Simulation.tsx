@@ -15,6 +15,8 @@ import PlayerControls from "@/components/hud/PlayerControls";
 import LoadingOverlay from "@/components/hud/LoadingOverlay";
 import ModeToggle from "@/components/hud/ModeToggle";
 import SeparatorHandles from "@/components/hud/SeparatorHandles";
+import LightCurve from "@/components/hud/LightCurve";
+import EHTInset from "@/components/hud/EHTInset";
 
 // Wall-clock loop length. The data atlas covers ~5000 r_g/c of simulation
 // time (~28h of real Sgr A* accretion), played back as a 3-minute loop.
@@ -142,6 +144,10 @@ export default function Simulation() {
           onChange={onSplitChange}
         />
         <ModeToggle useData={useData} onToggle={onToggleMode} />
+        {useData && (
+          <EHTInset timeRef={timeRef} dataDuration={DATA_DURATION} />
+        )}
+        <LightCurve timeRef={timeRef} duration={DURATION} />
         <PlayerControls
           playing={playing}
           onTogglePlay={onTogglePlay}

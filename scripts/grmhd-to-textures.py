@@ -62,6 +62,7 @@ def build_yoon_atlas(yoon_dir: Path, out_dir: Path) -> dict:
     ymax = float(load_npy(yoon_dir / "ymax.npy"))
     t = load_npy(yoon_dir / "t.npy")               # (T,) in r_g/c
     th0 = float(load_npy(yoon_dir / "th0.npy"))
+    tot_fnu = load_npy(yoon_dir / "totFnu.npy")    # (T,) total flux per frame
 
     n_frames, h, w = inu.shape
     print(f"Yoon Inu: {n_frames} frames, {h}x{w} px, "
@@ -129,6 +130,7 @@ def build_yoon_atlas(yoon_dir: Path, out_dir: Path) -> dict:
         "rows": rows,
         "plot_domain": {"xmin": PLOT_XMIN, "xmax": PLOT_XMAX, "ymin": PLOT_YMIN, "ymax": PLOT_YMAX},
         "t_sim": [float(x) for x in t.tolist()],
+        "tot_fnu": [float(x) for x in tot_fnu.tolist()],
         "sqrt_min": vmin,
         "sqrt_max": vmax,
     }
