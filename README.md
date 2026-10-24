@@ -6,7 +6,16 @@ simulation library are mapped through three colormaps in a single
 split-view canvas, with shader-drawn iso-contours, draggable panel
 separators, and an orbit camera.
 
-![Demo](public/grmhd/demo.gif)
+<table>
+  <tr>
+    <td width="50%"><img src="public/grmhd/demo.gif" alt="Interactive viewer: GRMHD radiation, magnetic field strength and density around Sgr A* in a split view" width="100%"></td>
+    <td width="50%"><img src="public/raytrace/blackhole.webp" alt="Offline ray tracer: a black hole with a lensed, Doppler-beamed accretion disk, its photon ring, a lensed starfield and faint jets" width="100%"></td>
+  </tr>
+  <tr>
+    <td align="center">Interactive GRMHD viewer (WebGL)</td>
+    <td align="center">Offline ray tracer (<a href="#offline-ray-tracer"><code>scripts/raytrace.py</code></a>)</td>
+  </tr>
+</table>
 
 ## What's on screen
 
@@ -88,9 +97,11 @@ shaders/
     colormaps.ts              inferno / viridis / plasma / hotDensity / magRainbow
     fields.ts                 density, radiationPower, streamFunction, bField
 public/grmhd/                 Baked GRMHD textures + demo.gif
+public/raytrace/              Preview of the offline ray tracer (README)
 scripts/
   grmhd-to-textures.py        Bakes source NPZs → atlas PNG + JSON
   capture-gif.mjs             Records demo.gif via playwright + ffmpeg
+  raytrace.py                 Offline Schwarzschild ray tracer (black hole + disk)
 ```
 
 ## Data
@@ -134,6 +145,35 @@ server running on :3010):
 ```bash
 node scripts/capture-gif.mjs --duration 9 --fps 10 --out public/grmhd/demo.gif
 ```
+
+## Offline ray tracer
+
+`scripts/raytrace.py` renders the black hole from first principles instead of from simulation data: a Schwarzschild
+black hole with a thin, turbulent accretion disk, traced pixel by pixel through the curved spacetime (G = c = M = 1).
+
+- **Geodesics.** A photon with impact parameter b moves in a plane; with u = 1/r its orbit obeys u'' = 3u² − u. The
+  equation is integrated once (RK4) for a grid of b and tabulated. Rays with b < 3√3 fall in and form the shadow;
+  rays just outside wind around the hole and form the photon ring.
+- **Disk images.** Each ray meets the disk plane twice: the primary image (the far side of the disk lifted over the
+  shadow) and the secondary image (the disk's underside seen below it).
+- **Emission and beaming.** The disk shines from the innermost stable orbit (r = 6) outwards with a Novikov–Thorne-like
+  profile, boosted by g⁴ for Keplerian gas (gravitational redshift and Doppler shift), so the approaching side blazes.
+- **Gas.** Two noise textures, sheared into trailing spirals, turn at the Keplerian rate Ω = r^(−3/2); two copies one
+  loop apart are cross-faded, so the animation loops seamlessly.
+- **Sky and finish.** Escaping rays sample a starfield through their deflection (an Einstein ring), plus a two-scale
+  bloom and faint helical jets along the spin axis.
+
+The lensing geometry is computed once per resolution; each frame only resamples the gas, so even 4K frames take a few
+seconds.
+
+```bash
+pip install numpy scipy pillow
+python scripts/raytrace.py --still blackhole.png --width 1920
+python scripts/raytrace.py --video blackhole.mp4 --width 3840 --fps 30   # needs ffmpeg
+python scripts/raytrace.py --webp public/raytrace/blackhole.webp --width 960 --fps 15
+```
+
+Options: `--inclination` (degrees from the disk axis, default 78), `--duration` (loop length, default 24 s).
 
 ## Performance notes
 
