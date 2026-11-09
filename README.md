@@ -198,6 +198,6 @@ The look lives in two places:
 
 ## License
 
-MIT for the code in this repo. The bundled GRMHD textures under
+MIT for the code in this repo, see [LICENSE](LICENSE). The bundled GRMHD textures under
 `public/grmhd/` are derivatives of CC-BY-4.0 datasets — see the data
 citations above.
